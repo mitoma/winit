@@ -1023,12 +1023,14 @@ impl EventProcessor {
         let event = match event.detail as u32 {
             xlib::Button1 => WindowEvent::PointerButton {
                 device_id,
+                primary: true,
                 state,
                 position,
                 button: MouseButton::Left.into(),
             },
             xlib::Button2 => WindowEvent::PointerButton {
                 device_id,
+                primary: true,
                 state,
                 position,
                 button: MouseButton::Middle.into(),
@@ -1036,6 +1038,7 @@ impl EventProcessor {
 
             xlib::Button3 => WindowEvent::PointerButton {
                 device_id,
+                primary: true,
                 state,
                 position,
                 button: MouseButton::Right.into(),
@@ -1058,6 +1061,7 @@ impl EventProcessor {
             },
             8 => WindowEvent::PointerButton {
                 device_id,
+                primary: true,
                 state,
                 position,
                 button: MouseButton::Back.into(),
@@ -1065,12 +1069,14 @@ impl EventProcessor {
 
             9 => WindowEvent::PointerButton {
                 device_id,
+                primary: true,
                 state,
                 position,
                 button: MouseButton::Forward.into(),
             },
             x => WindowEvent::PointerButton {
                 device_id,
+                primary: true,
                 state,
                 position,
                 button: MouseButton::Other(x as u16).into(),
@@ -1105,6 +1111,7 @@ impl EventProcessor {
                 window_id,
                 event: WindowEvent::PointerMoved {
                     device_id,
+                    primary: true,
                     position,
                     source: PointerSource::Mouse,
                 },
@@ -1194,6 +1201,7 @@ impl EventProcessor {
                 window_id,
                 event: WindowEvent::PointerEntered {
                     device_id,
+                    primary: true,
                     position,
                     kind: PointerKind::Mouse,
                 },
@@ -1218,6 +1226,7 @@ impl EventProcessor {
                 window_id: mkwid(window),
                 event: WindowEvent::PointerLeft {
                     device_id: Some(mkdid(event.deviceid as xinput::DeviceId)),
+                    primary: true,
                     position: Some(PhysicalPosition::new(event.event_x, event.event_y)),
                     kind: PointerKind::Mouse,
                 },
@@ -1278,7 +1287,12 @@ impl EventProcessor {
 
         let event = Event::WindowEvent {
             window_id,
-            event: WindowEvent::PointerMoved { device_id, position, source: PointerSource::Mouse },
+            event: WindowEvent::PointerMoved {
+                device_id,
+                primary: true,
+                position,
+                source: PointerSource::Mouse,
+            },
         };
         callback(&self.target, event);
     }
@@ -1349,11 +1363,14 @@ impl EventProcessor {
 
             // Mouse cursor position changes when touch events are received.
             // Only the first concurrently active touch ID moves the mouse cursor.
-            if is_first_touch(&mut self.first_touch, &mut self.num_touch, id, phase) {
+            let is_first_touch =
+                is_first_touch(&mut self.first_touch, &mut self.num_touch, id, phase);
+            if is_first_touch {
                 let event = Event::WindowEvent {
                     window_id,
                     event: WindowEvent::PointerMoved {
                         device_id: None,
+                        primary: true,
                         position: position.cast(),
                         source: PointerSource::Mouse,
                     },
@@ -1370,6 +1387,7 @@ impl EventProcessor {
                         window_id,
                         event: WindowEvent::PointerEntered {
                             device_id,
+                            primary: is_first_touch,
                             position,
                             kind: PointerKind::Touch(finger_id),
                         },
@@ -1379,6 +1397,7 @@ impl EventProcessor {
                         window_id,
                         event: WindowEvent::PointerButton {
                             device_id,
+                            primary: is_first_touch,
                             state: ElementState::Pressed,
                             position,
                             button: ButtonSource::Touch { finger_id, force: None },
@@ -1391,6 +1410,7 @@ impl EventProcessor {
                         window_id,
                         event: WindowEvent::PointerMoved {
                             device_id,
+                            primary: is_first_touch,
                             position,
                             source: PointerSource::Touch { finger_id, force: None },
                         },
@@ -1402,6 +1422,7 @@ impl EventProcessor {
                         window_id,
                         event: WindowEvent::PointerButton {
                             device_id,
+                            primary: is_first_touch,
                             state: ElementState::Released,
                             position,
                             button: ButtonSource::Touch { finger_id, force: None },
@@ -1412,6 +1433,7 @@ impl EventProcessor {
                         window_id,
                         event: WindowEvent::PointerLeft {
                             device_id,
+                            primary: is_first_touch,
                             position: Some(position),
                             kind: PointerKind::Touch(finger_id),
                         },
