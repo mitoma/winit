@@ -521,6 +521,7 @@ impl WinitView {
                         window_id,
                         event: WindowEvent::PointerEntered {
                             device_id: None,
+                            primary: true,
                             position,
                             kind: if let UITouchType::Pencil = touch_type {
                                 PointerKind::Unknown
@@ -533,6 +534,7 @@ impl WinitView {
                         window_id,
                         event: WindowEvent::PointerButton {
                             device_id: None,
+                            primary: true,
                             state: ElementState::Pressed,
                             position,
                             button: if let UITouchType::Pencil = touch_type {
@@ -548,6 +550,7 @@ impl WinitView {
                         window_id,
                         event: WindowEvent::PointerMoved {
                             device_id: None,
+                            primary: true,
                             position,
                             source: if let UITouchType::Pencil = touch_type {
                                 PointerSource::Unknown
@@ -564,6 +567,7 @@ impl WinitView {
                             window_id,
                             event: WindowEvent::PointerButton {
                                 device_id: None,
+                                primary: true,
                                 state: ElementState::Released,
                                 position,
                                 button: if let UITouchType::Pencil = touch_type {
@@ -579,6 +583,7 @@ impl WinitView {
                         window_id,
                         event: WindowEvent::PointerLeft {
                             device_id: None,
+                            primary: true,
                             position: Some(position),
                             kind: if let UITouchType::Pencil = touch_type {
                                 PointerKind::Unknown
