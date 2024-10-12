@@ -245,10 +245,10 @@ pub enum WindowEvent {
         /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
         position: PhysicalPosition<f64>,
 
-        /// Indicates whether the event is created by primary pointer.
+        /// Indicates whether the event is created by a primary pointer.
         ///
-        /// A pointer is considered primary when it's a mouse, the first finger in multi-touch
-        /// sequence, or unknown pointer source.
+        /// A pointer is considered primary when it's a mouse, the first finger in a multi-touch
+        /// interaction, or an unknown pointer source.
         primary: bool,
 
         source: PointerSource,
@@ -270,10 +270,10 @@ pub enum WindowEvent {
         /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
         position: PhysicalPosition<f64>,
 
-        /// Indicates whether the event is created by primary pointer.
+        /// Indicates whether the event is created by a primary pointer.
         ///
-        /// A pointer is considered primary when it's a mouse, the first finger in multi-touch
-        /// sequence, or unknown pointer source.
+        /// A pointer is considered primary when it's a mouse, the first finger in a multi-touch
+        /// interaction, or an unknown pointer source.
         primary: bool,
 
         kind: PointerKind,
@@ -296,10 +296,10 @@ pub enum WindowEvent {
         /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
         position: Option<PhysicalPosition<f64>>,
 
-        /// Indicates whether the event is created by primary pointer.
+        /// Indicates whether the event is created by a primary pointer.
         ///
-        /// A pointer is considered primary when it's a mouse, the first finger in multi-touch
-        /// sequence, or unknown pointer source.
+        /// A pointer is considered primary when it's a mouse, the first finger in a multi-touch
+        /// interaction, or an unknown pointer source.
         primary: bool,
 
         kind: PointerKind,
@@ -325,10 +325,10 @@ pub enum WindowEvent {
         /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
         position: PhysicalPosition<f64>,
 
-        /// Indicates whether the event is created by primary pointer.
+        /// Indicates whether the event is created by a primary pointer.
         ///
-        /// A pointer is considered primary when it's a mouse, the first finger in multi-touch
-        /// sequence, or unknown pointer source.
+        /// A pointer is considered primary when it's a mouse, the first finger in a multi-touch
+        /// interaction, or an unknown pointer source.
         primary: bool,
 
         button: ButtonSource,
