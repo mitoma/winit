@@ -15,7 +15,7 @@ use super::{
     window::WindowId,
 };
 use crate::event::{
-    DeviceId as RootDeviceId, ElementState, Event, KeyEvent, Touch, TouchPhase, WindowEvent,
+    DeviceId as RootDeviceId, ElementState, Event, Ime, KeyEvent, Touch, TouchPhase, WindowEvent,
 };
 use crate::event_loop::{ControlFlow, DeviceEvents};
 use crate::keyboard::ModifiersState;
@@ -604,6 +604,51 @@ impl<T> EventLoopWindowTarget<T> {
                 }),
             });
         });
+
+        canvas.on_composition_start(
+            {
+                let runner = self.runner.clone();
+                move |data, position| {
+                    if let Some(data) = data {
+                        runner.send_event(Event::WindowEvent {
+                            window_id: RootWindowId(id),
+                            event: WindowEvent::Ime(Ime::Preedit(data, position)),
+                        });
+                    }
+                }
+            },
+            prevent_default,
+        );
+
+        canvas.on_composition_end(
+            {
+                let runner = self.runner.clone();
+                move |data| {
+                    if let Some(data) = data {
+                        runner.send_event(Event::WindowEvent {
+                            window_id: RootWindowId(id),
+                            event: WindowEvent::Ime(Ime::Commit(data)),
+                        });
+                    }
+                }
+            },
+            prevent_default,
+        );
+
+        canvas.on_composition_update(
+            {
+                let runner = self.runner.clone();
+                move |data, position| {
+                    if let Some(data) = data {
+                        runner.send_event(Event::WindowEvent {
+                            window_id: RootWindowId(id),
+                            event: WindowEvent::Ime(Ime::Preedit(data, position)),
+                        });
+                    }
+                }
+            },
+            prevent_default,
+        );
 
         let runner = self.runner.clone();
         canvas.on_dark_mode(move |is_dark_mode| {

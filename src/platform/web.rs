@@ -34,16 +34,23 @@ use crate::window::{Window, WindowBuilder};
 use crate::SendSyncWrapper;
 
 use web_sys::HtmlCanvasElement;
+use web_sys::HtmlInputElement;
 
 pub trait WindowExtWebSys {
     /// Only returns the canvas if called from inside the window.
     fn canvas(&self) -> Option<HtmlCanvasElement>;
+    fn input(&self) -> Option<HtmlInputElement>;
 }
 
 impl WindowExtWebSys for Window {
     #[inline]
     fn canvas(&self) -> Option<HtmlCanvasElement> {
         self.window.canvas()
+    }
+
+    #[inline]
+    fn input(&self) -> Option<HtmlInputElement> {
+        self.window.input()
     }
 }
 

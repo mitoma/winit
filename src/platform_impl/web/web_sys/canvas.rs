@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use smol_str::SmolStr;
 use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{
-    CssStyleDeclaration, Document, Event, FocusEvent, HtmlCanvasElement, KeyboardEvent,
-    PointerEvent, WheelEvent,
+    CompositionEvent, CssStyleDeclaration, Document, Event, FocusEvent, HtmlCanvasElement,
+    HtmlInputElement, KeyboardEvent, PointerEvent, WheelEvent,
 };
 
 use crate::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
@@ -44,6 +44,9 @@ pub struct Canvas {
     animation_frame_handler: AnimationFrameHandler,
     on_touch_end: Option<EventListenerHandle<dyn FnMut(Event)>>,
     on_context_menu: Option<EventListenerHandle<dyn FnMut(PointerEvent)>>,
+    on_composition_start: Option<EventListenerHandle<dyn FnMut(CompositionEvent)>>,
+    on_composition_end: Option<EventListenerHandle<dyn FnMut(CompositionEvent)>>,
+    on_composition_update: Option<EventListenerHandle<dyn FnMut(CompositionEvent)>>,
 }
 
 pub struct Common {
@@ -51,6 +54,7 @@ pub struct Common {
     pub document: Document,
     /// Note: resizing the HTMLCanvasElement should go through `backend::set_canvas_size` to ensure the DPI factor is maintained.
     pub raw: HtmlCanvasElement,
+    pub raw_input: HtmlInputElement,
     style: CssStyleDeclaration,
     old_size: Rc<Cell<PhysicalSize<u32>>>,
     current_size: Rc<Cell<PhysicalSize<u32>>>,
@@ -81,6 +85,25 @@ impl Canvas {
                 .expect("Failed to append canvas to body");
         }
 
+        let input: HtmlInputElement = {
+            let input: HtmlInputElement = document
+                .create_element("input")
+                .map_err(|_| os_error!(OsError("Failed to create canvas element".to_owned())))?
+                .unchecked_into();
+            let style = input.style();
+            style.set_property("opacity", "0").unwrap();
+            style.set_property("z-index", "-1").unwrap();
+            input
+        };
+
+        if platform_attr.append && !document.contains(Some(&input)) {
+            document
+                .body()
+                .expect("Failed to get body from document")
+                .insert_before(&input, None)
+                .expect("Failed to append input to body");
+        }
+
         // A tabindex is needed in order to capture local keyboard events.
         // A "0" value means that the element should be focusable in
         // sequential keyboard navigation, but its order is defined by the
@@ -103,6 +126,7 @@ impl Canvas {
             window: window.clone(),
             document: document.clone(),
             raw: canvas.clone(),
+            raw_input: input.clone(),
             style,
             old_size: Rc::default(),
             current_size: Rc::default(),
@@ -134,7 +158,7 @@ impl Canvas {
         }
 
         if attr.active {
-            let _ = common.raw.focus();
+            let _ = common.raw_input.focus();
         }
 
         Ok(Canvas {
@@ -155,6 +179,9 @@ impl Canvas {
             animation_frame_handler: AnimationFrameHandler::new(window),
             on_touch_end: None,
             on_context_menu: None,
+            on_composition_start: None,
+            on_composition_end: None,
+            on_composition_update: None,
         })
     }
 
@@ -229,6 +256,11 @@ impl Canvas {
     }
 
     #[inline]
+    pub fn raw_input(&self) -> &HtmlInputElement {
+        &self.common.raw_input
+    }
+
+    #[inline]
     pub fn style(&self) -> &CssStyleDeclaration {
         &self.common.style
     }
@@ -254,7 +286,9 @@ impl Canvas {
     where
         F: 'static + FnMut(),
     {
+        let raw_input = self.common.raw_input.clone();
         self.on_focus = Some(self.common.add_event("focus", move |_: FocusEvent| {
+            let _ = raw_input.focus();
             handler();
         }));
     }
@@ -263,8 +297,9 @@ impl Canvas {
     where
         F: 'static + FnMut(PhysicalKey, Key, Option<SmolStr>, KeyLocation, bool, ModifiersState),
     {
-        self.on_keyboard_release =
-            Some(self.common.add_event("keyup", move |event: KeyboardEvent| {
+        self.on_keyboard_release = Some(self.common.add_ime_event(
+            "keyup",
+            move |event: KeyboardEvent| {
                 if prevent_default {
                     event.prevent_default();
                 }
@@ -278,14 +313,15 @@ impl Canvas {
                     event.repeat(),
                     modifiers,
                 );
-            }));
+            },
+        ));
     }
 
     pub fn on_keyboard_press<F>(&mut self, mut handler: F, prevent_default: bool)
     where
         F: 'static + FnMut(PhysicalKey, Key, Option<SmolStr>, KeyLocation, bool, ModifiersState),
     {
-        self.on_keyboard_press = Some(self.common.add_transient_event(
+        self.on_keyboard_press = Some(self.common.add_ime_transient_event(
             "keydown",
             move |event: KeyboardEvent| {
                 if prevent_default {
@@ -449,6 +485,54 @@ impl Canvas {
         self.on_touch_end = Some(self.common.add_transient_event("touchend", |_| {}));
     }
 
+    pub fn on_composition_start<F>(&mut self, mut handler: F, prevent_default: bool)
+    where
+        F: 'static + FnMut(Option<String>, Option<(usize, usize)>),
+    {
+        self.on_composition_start = Some(self.common.add_ime_event(
+            "compositionstart",
+            move |event: CompositionEvent| {
+                debug!("start:{:?}", event);
+                if prevent_default {
+                    event.prevent_default();
+                }
+                handler(event.data(), None);
+            },
+        ));
+    }
+
+    pub fn on_composition_end<F>(&mut self, mut handler: F, prevent_default: bool)
+    where
+        F: 'static + FnMut(Option<String>),
+    {
+        self.on_composition_end = Some(self.common.add_ime_event(
+            "compositionend",
+            move |event: CompositionEvent| {
+                debug!("end:{:?}", event);
+                if prevent_default {
+                    event.prevent_default();
+                }
+                handler(event.data());
+            },
+        ));
+    }
+
+    pub fn on_composition_update<F>(&mut self, mut handler: F, prevent_default: bool)
+    where
+        F: 'static + FnMut(Option<String>, Option<(usize, usize)>),
+    {
+        self.on_composition_update = Some(self.common.add_ime_event(
+            "compositionupdate",
+            move |event: CompositionEvent| {
+                debug!("update:{:?}", event);
+                if prevent_default {
+                    event.prevent_default();
+                }
+                handler(event.data(), None);
+            },
+        ));
+    }
+
     pub(crate) fn on_context_menu(&mut self, prevent_default: bool) {
         self.on_context_menu = Some(self.common.add_event(
             "contextmenu",
@@ -539,6 +623,9 @@ impl Canvas {
         self.on_touch_end = None;
         self.common.fullscreen_handler.cancel();
         self.on_context_menu = None;
+        self.on_composition_start = None;
+        self.on_composition_end = None;
+        self.on_composition_update = None;
     }
 }
 
@@ -553,6 +640,18 @@ impl Common {
         F: 'static + FnMut(E),
     {
         EventListenerHandle::new(self.raw.clone(), event_name, Closure::new(handler))
+    }
+
+    pub fn add_ime_event<E, F>(
+        &self,
+        event_name: &'static str,
+        handler: F,
+    ) -> EventListenerHandle<dyn FnMut(E)>
+    where
+        E: 'static + AsRef<web_sys::Event> + wasm_bindgen::convert::FromWasmAbi,
+        F: 'static + FnMut(E),
+    {
+        EventListenerHandle::new(self.raw_input.clone(), event_name, Closure::new(handler))
     }
 
     // The difference between add_event and add_user_event is that the latter has a special meaning
@@ -570,6 +669,26 @@ impl Common {
         let fullscreen_handler = Rc::downgrade(&self.fullscreen_handler);
 
         self.add_event(event_name, move |event: E| {
+            handler(event);
+
+            if let Some(fullscreen_handler) = Weak::upgrade(&fullscreen_handler) {
+                fullscreen_handler.transient_activation()
+            }
+        })
+    }
+
+    pub fn add_ime_transient_event<E, F>(
+        &self,
+        event_name: &'static str,
+        mut handler: F,
+    ) -> EventListenerHandle<dyn FnMut(E)>
+    where
+        E: 'static + AsRef<web_sys::Event> + wasm_bindgen::convert::FromWasmAbi,
+        F: 'static + FnMut(E),
+    {
+        let fullscreen_handler = Rc::downgrade(&self.fullscreen_handler);
+
+        self.add_ime_event(event_name, move |event: E| {
             handler(event);
 
             if let Some(fullscreen_handler) = Weak::upgrade(&fullscreen_handler) {

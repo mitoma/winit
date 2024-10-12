@@ -7,7 +7,7 @@ use crate::window::{
 };
 use crate::SendSyncWrapper;
 
-use web_sys::HtmlCanvasElement;
+use web_sys::{HtmlCanvasElement, HtmlInputElement};
 
 use super::r#async::Dispatcher;
 use super::{backend, monitor::MonitorHandle, EventLoopWindowTarget, Fullscreen};
@@ -81,6 +81,12 @@ impl Window {
         self.inner
             .value()
             .map(|inner| inner.canvas.borrow().raw().clone())
+    }
+
+    pub fn input(&self) -> Option<HtmlInputElement> {
+        self.inner
+            .value()
+            .map(|inner| inner.canvas.borrow().raw_input().clone())
     }
 }
 
