@@ -35,8 +35,12 @@ impl ImeContext {
         let mut first = None;
         let mut last = None;
         let mut boundary_before_char = 0;
+        let mut skip_attr_offset = 0;
 
-        for (attr, chr) in attrs.into_iter().zip(text.chars()) {
+        for (idx, chr) in text.chars().enumerate() {
+            let Some(attr) = attrs.get(idx + skip_attr_offset).copied() else {
+                break;
+            };
             let char_is_targeted =
                 attr as u32 == ATTR_TARGET_CONVERTED || attr as u32 == ATTR_TARGET_NOTCONVERTED;
 
@@ -46,6 +50,10 @@ impl ImeContext {
                 last = Some(boundary_before_char);
             }
 
+            // If the character is represented by a UTF-16 surrogate pair, skip the next attr.
+            if chr.len_utf16() == 2 {
+                skip_attr_offset += chr.len_utf16() - 1;
+            }
             boundary_before_char += chr.len_utf8();
         }
 
